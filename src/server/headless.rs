@@ -2435,7 +2435,10 @@ impl HeadlessServer {
                 client.request_semantic_redraw_after_input();
             }
         }
-        self.update_client_outer_focus_from_events(client_id, &events);
+        if source_is_full_app {
+            self.update_client_outer_focus_from_events(client_id, &events);
+        }
+        let events = events_for_app_routing(events, source_was_foreground, source_is_full_app);
         let interaction = events_include_interaction(&events);
         let foreground_changed = if interaction {
             self.promote_client_to_foreground(client_id)
@@ -2446,7 +2449,6 @@ impl HeadlessServer {
             self.resize_shared_runtime_to_effective_size_before_input();
         }
         let theme_changed = self.update_client_host_theme_from_events(client_id, &events);
-        let events = events_for_app_routing(events, source_was_foreground, source_is_full_app);
         self.app
             .route_client_events(events, self.foreground_client_id == Some(client_id));
         if self.app.take_config_reloaded_from_disk() {
@@ -6635,34 +6637,47 @@ next_tab = ""
     }
 
     #[tokio::test]
-    async fn structured_focus_from_non_app_clients_does_not_reach_pane() {
+    async fn structured_non_app_focus_is_ignored_without_suppressing_keys() {
         let mut server = test_headless_server();
         let mut input_rx = install_focused_test_runtime(&mut server, b"\x1b[?1004h");
         server.clients.insert(1, test_app_client(Some(true), 1));
 
-        let mut attached = test_app_client(Some(true), 2);
+        let mut attached = test_app_client(Some(false), 2);
         attached.mode = ClientConnectionMode::TerminalAttach {
             terminal_id: "attached".to_owned(),
         };
         server.clients.insert(2, attached);
 
-        let mut pending = test_app_client(Some(true), 3);
+        let mut pending = test_app_client(Some(false), 3);
         pending.pending_terminal_attach = true;
         server.clients.insert(3, pending);
+        server.foreground_client_id = Some(1);
+        server.sync_foreground_client_state();
 
         for client_id in [2, 3] {
-            server.foreground_client_id = Some(1);
-            server.sync_foreground_client_state();
-            assert!(server.handle_server_event(ServerEvent::ClientInputEvents {
+            assert!(!server.handle_server_event(ServerEvent::ClientInputEvents {
                 client_id,
                 events: vec![crate::protocol::ClientInputEvent::FocusGained],
             }));
+            assert_eq!(server.foreground_client_id, Some(1));
+            assert_eq!(server.app.state.outer_terminal_focus, Some(true));
+            assert_eq!(server.clients[&client_id].outer_terminal_focus, Some(false));
         }
 
         assert!(matches!(
             input_rx.try_recv(),
             Err(tokio::sync::mpsc::error::TryRecvError::Empty)
         ));
+
+        assert!(server.handle_server_event(ServerEvent::ClientInputEvents {
+            client_id: 3,
+            events: vec![crate::protocol::ClientInputEvent::Key {
+                code: crate::protocol::ClientKeyCode::Char('x'),
+                modifiers: 0,
+                kind: crate::protocol::ClientKeyKind::Release,
+            }],
+        }));
+        assert_eq!(server.foreground_client_id, Some(3));
     }
 
     fn install_focused_test_runtime(
