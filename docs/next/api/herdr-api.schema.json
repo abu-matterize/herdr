@@ -2027,6 +2027,17 @@
           ],
           "type": "object"
         },
+        "PaneClearScrollbackParams": {
+          "properties": {
+            "pane_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "pane_id"
+          ],
+          "type": "object"
+        },
         "PaneCurrentParams": {
           "properties": {
             "caller_pane_id": {
@@ -5023,6 +5034,22 @@
             },
             "params": {
               "$ref": "#/schemas/request/$defs/PaneClearAgentAuthorityParams"
+            }
+          },
+          "required": [
+            "method",
+            "params"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "method": {
+              "const": "pane.clear_scrollback",
+              "type": "string"
+            },
+            "params": {
+              "$ref": "#/schemas/request/$defs/PaneClearScrollbackParams"
             }
           },
           "required": [
