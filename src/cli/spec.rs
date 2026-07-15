@@ -446,6 +446,11 @@ fn pane_command() -> Command {
         )
         .subcommand(id_command("close", "pane_id", "Close a pane"))
         .subcommand(
+            Command::new("clear-scrollback")
+                .about("Clear pane scrollback history")
+                .arg(required("pane_id", "PANE_ID")),
+        )
+        .subcommand(
             Command::new("send-text")
                 .about("Send literal text to a pane")
                 .arg(required("pane_id", "PANE_ID"))

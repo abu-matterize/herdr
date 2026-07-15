@@ -2434,6 +2434,11 @@ impl PaneRuntime {
         self.terminal.scroll_reset();
     }
 
+    /// Clear scrollback history for the pane.
+    pub fn clear_scrollback(&self) {
+        self.terminal.clear_scrollback();
+    }
+
     /// Set scrollback offset measured from the live bottom of the terminal.
     pub fn set_scroll_offset_from_bottom(&self, lines: usize) {
         self.terminal.set_scroll_offset_from_bottom(lines);

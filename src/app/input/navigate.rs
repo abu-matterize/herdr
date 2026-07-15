@@ -376,6 +376,10 @@ impl App {
                 }
             }
             NavigateAction::EditScrollback => {}
+            NavigateAction::ClearScrollback => {
+                self.clear_focused_scrollback();
+                leave_navigate_mode(&mut self.state);
+            }
             NavigateAction::CopyMode => self.state.enter_copy_mode(&self.terminal_runtimes),
             NavigateAction::Zoom => {
                 self.zoom_focused_pane_via_api();
@@ -949,6 +953,24 @@ impl App {
         Ok(())
     }
 
+    pub(super) fn clear_focused_scrollback(&self) {
+        let Some(ws_idx) = self.state.active else {
+            return;
+        };
+        let Some(ws) = self.state.workspaces.get(ws_idx) else {
+            return;
+        };
+        let Some(pane_id) = ws.focused_pane_id() else {
+            return;
+        };
+        if let Some(runtime) =
+            self.state
+                .runtime_for_pane_in_workspace(&self.terminal_runtimes, ws_idx, pane_id)
+        {
+            runtime.clear_scrollback();
+        }
+    }
+
     fn spawn_pane_command(
         &mut self,
         command: &str,
@@ -1326,6 +1348,7 @@ pub(crate) enum NavigateAction {
     SplitHorizontal,
     ClosePane,
     EditScrollback,
+    ClearScrollback,
     CopyMode,
     Zoom,
     EnterResizeMode,
@@ -1448,6 +1471,7 @@ fn non_indexed_action_for_key(
         (&kb.close_tab, NavigateAction::CloseTab),
         (&kb.rename_pane, NavigateAction::RenamePane),
         (&kb.edit_scrollback, NavigateAction::EditScrollback),
+        (&kb.clear_scrollback, NavigateAction::ClearScrollback),
         (&kb.copy_mode, NavigateAction::CopyMode),
         (&kb.focus_pane_left, NavigateAction::FocusPaneLeft),
         (&kb.focus_pane_down, NavigateAction::FocusPaneDown),
@@ -1690,6 +1714,7 @@ pub(super) fn execute_navigate_action_in_context(
             }
         }
         NavigateAction::EditScrollback => {}
+        NavigateAction::ClearScrollback => {}
         NavigateAction::CopyMode => state.enter_copy_mode(terminal_runtimes),
         NavigateAction::Zoom => {
             state.toggle_zoom();

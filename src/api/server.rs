@@ -404,6 +404,7 @@ fn api_method_name(method: &Method) -> &'static str {
         Method::PaneReportAgentSession(_) => "pane.report_agent_session",
         Method::PaneReportMetadata(_) => "pane.report_metadata",
         Method::PaneClearAgentAuthority(_) => "pane.clear_agent_authority",
+        Method::PaneClearScrollback(_) => "pane.clear_scrollback",
         Method::PaneReleaseAgent(_) => "pane.release_agent",
         Method::PaneClose(_) => "pane.close",
         Method::PopupClose(_) => "popup.close",

@@ -1060,6 +1060,9 @@ impl App {
             Method::PaneClearAgentAuthority(params) => {
                 return self.handle_pane_clear_agent_authority(request.id, params);
             }
+            Method::PaneClearScrollback(params) => {
+                return self.handle_pane_clear_scrollback(request.id, params);
+            }
             Method::PaneReleaseAgent(params) => {
                 return self.handle_pane_release_agent(request.id, params);
             }

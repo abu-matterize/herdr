@@ -1,8 +1,8 @@
 use bytes::Bytes;
 
 use crate::api::schema::{
-    EventData, EventEnvelope, EventKind, PaneClearAgentAuthorityParams, PaneCurrentParams,
-    PaneDirection, PaneEdgesParams, PaneEdgesResult, PaneFocusDirectionParams,
+    EventData, EventEnvelope, EventKind, PaneClearAgentAuthorityParams, PaneClearScrollbackParams,
+    PaneCurrentParams, PaneDirection, PaneEdgesParams, PaneEdgesResult, PaneFocusDirectionParams,
     PaneFocusDirectionReason, PaneFocusDirectionResult, PaneInfo, PaneLayoutPane, PaneLayoutParams,
     PaneLayoutRect, PaneLayoutSnapshot, PaneLayoutSplit, PaneListParams, PaneMoveDestination,
     PaneMoveParams, PaneMoveReason, PaneMoveResult, PaneNeighborParams, PaneNeighborResult,
@@ -1448,6 +1448,21 @@ impl App {
         encode_success(id, ResponseResult::Ok {})
     }
 
+    pub(super) fn handle_pane_clear_scrollback(
+        &mut self,
+        id: String,
+        params: PaneClearScrollbackParams,
+    ) -> String {
+        let Some((ws_idx, pane_id)) = self.parse_pane_id(&params.pane_id) else {
+            return pane_not_found(id, &params.pane_id);
+        };
+        let Some(runtime) = self.lookup_runtime_sender(ws_idx, pane_id) else {
+            return pane_not_found(id, &params.pane_id);
+        };
+        runtime.clear_scrollback();
+        encode_success(id, ResponseResult::Ok {})
+    }
+
     pub(super) fn handle_pane_release_agent(
         &mut self,
         id: String,
@@ -2000,6 +2015,37 @@ mod tests {
         assert_eq!(scroll.offset_from_bottom, 3);
         assert!(scroll.max_offset_from_bottom >= scroll.offset_from_bottom);
         assert_eq!(scroll.viewport_rows, 5);
+    }
+
+    #[tokio::test]
+    async fn api_pane_clear_scrollback_clears_history() {
+        let (mut app, public_pane_id, pane_id) = app_with_scrollback_runtime();
+        {
+            let runtime = app
+                .state
+                .runtime_for_pane_in_workspace(&app.terminal_runtimes, 0, pane_id)
+                .expect("runtime");
+            runtime.scroll_up(3);
+            let metrics = runtime.scroll_metrics().expect("scroll metrics");
+            assert!(metrics.max_offset_from_bottom > 0);
+        }
+
+        let response = app.handle_pane_clear_scrollback(
+            "req".into(),
+            PaneClearScrollbackParams {
+                pane_id: public_pane_id,
+            },
+        );
+
+        let success: SuccessResponse = serde_json::from_str(&response).unwrap();
+        assert_eq!(success.result, ResponseResult::Ok {});
+
+        let runtime = app
+            .state
+            .runtime_for_pane_in_workspace(&app.terminal_runtimes, 0, pane_id)
+            .expect("runtime");
+        let metrics = runtime.scroll_metrics().expect("scroll metrics");
+        assert_eq!(metrics.max_offset_from_bottom, 0);
     }
 
     #[tokio::test]
